@@ -1,25 +1,36 @@
 # models/xgboost_forecast/train.py
-
-import xgboost as xgb
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import mean_absolute_error
-from models.xgboost_forecast.utils import load_and_prepare
-import joblib
+import sys
 import os
 
-def train_model():
-    X, y = load_and_prepare("data/AAPL.csv", lags=10)
-    X_train, X_test, y_train, y_test = train_test_split(X, y, shuffle=False, random_state=42)
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 
-    model = xgb.XGBRegressor(n_estimators=100, max_depth=5, learning_rate=0.1)
+import pandas as pd
+import joblib
+import xgboost as xgb
+from sklearn.model_selection import train_test_split
+
+def create_lag_features(df, lags=10):
+    for i in range(1, lags + 1):
+        df[f"lag_{i}"] = df["Close"].shift(i)
+    return df
+
+def train_xgb_model():
+    df = pd.read_csv("data/aapl_preprocessed.csv")
+    df = create_lag_features(df, lags=10)
+    df.dropna(inplace=True)
+
+    feature_cols = ["Open", "High", "Low", "Volume"] + [f"lag_{i}" for i in range(1, 11)]
+    X = df[feature_cols]
+    y = df["Close"]
+
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+    model = xgb.XGBRegressor(n_estimators=100, learning_rate=0.1, max_depth=5)
     model.fit(X_train, y_train)
 
-    preds = model.predict(X_test)
-    mae = mean_absolute_error(y_test, preds)
-
-    os.makedirs("models/xgboost_forecast", exist_ok=True)
-    joblib.dump(model, "models/xgboost_forecast/model.pkl")
-    print(f"Model trained. MAE: {mae:.4f}")
+    # Save model
+    joblib.dump(model, "models/xgb_model.pkl")
+    print("✅ XGBoost model trained and saved as models/xgb_model.pkl")
 
 if __name__ == "__main__":
-    train_model()
+    train_xgb_model()

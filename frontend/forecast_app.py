@@ -1,5 +1,9 @@
 # frontend/forecast_app.py
 
+import sys
+import os
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
 import streamlit as st
 from models.xgboost_forecast.predict import predict_next
 from models.lstm_forecast.predict import predict_future
